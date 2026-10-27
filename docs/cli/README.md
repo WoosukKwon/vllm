@@ -179,6 +179,8 @@ rejection sampling are excluded. Both paths use CUDA graphs and restore the
 batch's state before each replay.
 Balanced MoE routing fixtures apply to the target model; the drafter uses its
 model routing, so use real weights when measuring a MoE drafter.
+The fixture supports Muse Spark's router and temporarily neutralizes its expert
+selection bias; the original bias is restored after each case.
 
 ```bash
 vllm bench forward --model Qwen/Qwen3-1.7B \
