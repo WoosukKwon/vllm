@@ -151,10 +151,16 @@ impl InklingChatRenderer {
     /// Multimodal preprocessing later expands the marker into per-patch
     /// image placeholder tokens once the patch count is known, mirroring the
     /// Python `InklingMultiModalProcessor` marker-anchored prompt updates.
-    fn write_image_block(&self, out: &mut Vec<u32>, role_token_id: u32) {
-        out.push(role_token_id);
+    fn write_image_block(
+        &self,
+        out: &mut Vec<u32>,
+        role_token_id: u32,
+        author_name: Option<&str>,
+    ) -> Result<()> {
+        self.write_message_start(out, role_token_id, author_name)?;
         out.push(self.special.content_image);
         out.push(self.special.end_message);
+        Ok(())
     }
 
     /// Write one audio block holding the `<|content_audio_input|>` marker
@@ -243,7 +249,7 @@ impl InklingChatRenderer {
                             self.write_text_block(out, role_token_id, None, text)?;
                         }
                         ChatContentPart::ImageUrl { .. } => {
-                            self.write_image_block(out, role_token_id);
+                            self.write_image_block(out, role_token_id, None)?;
                         }
                         ChatContentPart::InputAudio { .. } | ChatContentPart::AudioUrl { .. } => {
                             self.write_audio_block(out, role_token_id)?;
