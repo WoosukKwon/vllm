@@ -791,6 +791,18 @@ class TestInkling2Rendering:
             for tid in renderer._render(messages, params)
         ) == (expected + "<|message_user|><|content_text|>q<|end_message|>")
 
+    def test_responses_named_tool_choice_matches_chat_completions(self):
+        def render(tool_choice):
+            return render_inkling2_text(
+                [{"role": "user", "content": "q"}],
+                tools=[_WEATHER_TOOL, _SEARCH_TOOL],
+                tool_choice=tool_choice,
+            )
+
+        assert render({"type": "function", "name": "search"}) == render(
+            {"type": "function", "function": {"name": "search"}}
+        )
+
     def test_empty_contents_are_kept(self):
         assert render_inkling2_text(
             [

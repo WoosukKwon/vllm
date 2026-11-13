@@ -403,8 +403,7 @@ def _tool_call_json(name: str, args: Mapping[str, Any]) -> str:
 # Inkling2 keeps Inkling's block format but its reference renderer differs:
 # no generation prefix (the model emits its own ``<|message_model|>``), empty
 # string contents kept as empty blocks, effort quantized to integer
-# milli-effort, its own canonical JSON spelling for floats, and tool-choice
-# controls rendered as an instruction in the first system message.
+# milli-effort, and its own canonical JSON spelling for floats.
 
 
 def render_inkling2_messages(
@@ -439,8 +438,6 @@ def render_inkling2_messages(
             if _as_mapping(_as_mapping(tool).get("function", {})).get("name")
             == choice.name
         ]
-        if not declared_tools:
-            raise ValueError(f"tool_choice names an unknown function: {choice.name!r}")
     if declared_tools:
         _append_message(
             input_ids,
@@ -458,8 +455,6 @@ def render_inkling2_messages(
         else None
     )
     if instruction is not None:
-        # The instruction joins the first system message: the effort
-        # directive when the conversation does not start with one.
         if messages and messages[0].get("role") in {"system", "developer"}:
             messages[0] = _with_appended_text(messages[0], instruction)
         else:
@@ -530,7 +525,6 @@ def _inkling2_blocks(
     role: str,
     tool_call_id_to_name: dict[str, str],
 ) -> list[tuple[str, str, str | None]]:
-    """Return (kind, text, author name) per block; only tool calls name one."""
     content = message.get("content")
     if role != "assistant":
         return [(kind, text, None) for kind, text in _iter_inkling2_parts(content)]
@@ -552,7 +546,6 @@ def _inkling2_blocks(
         if tool_call_id:
             tool_call_id_to_name[str(tool_call_id)] = name
         args = _tml_json_loads(json.dumps(args, allow_nan=False))
-        # Only the argument names are sorted; nested values keep their order.
         args_json = _tml_json_dumps(
             {key: args[key] for key in sorted(args)}, sort_keys=False
         )
@@ -572,22 +565,17 @@ class _NamedToolChoice:
 
 
 def _inkling2_tool_choice(tool_choice: Any) -> str | _NamedToolChoice:
-    """Return "none", "auto", "required" or the one function to call."""
     if tool_choice is None:
         return "auto"
     if isinstance(tool_choice, str):
-        if tool_choice not in {"none", "auto", "required"}:
-            raise ValueError(f"unsupported tool_choice: {tool_choice!r}")
         return tool_choice
     choice = _as_mapping(tool_choice)
     if choice.get("type") != "function":
         raise ValueError(f"unsupported tool_choice: {tool_choice!r}")
-    # Chat Completions nests the name under `function`; Responses does not.
     function = choice.get("function")
-    name = _as_mapping(function).get("name") if function else choice.get("name")
-    if not isinstance(name, str) or not name:
-        raise ValueError(f"tool_choice must name a function: {tool_choice!r}")
-    return _NamedToolChoice(name)
+    return _NamedToolChoice(
+        _as_mapping(function)["name"] if function else choice["name"]
+    )
 
 
 def _inkling2_tool_choice_instruction(

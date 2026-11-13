@@ -6,9 +6,8 @@
 //! Inkling2 keeps Inkling's block format, but its reference renderer differs:
 //! no generation prefix (the model emits its own `<|message_model|>`), empty
 //! string contents kept as empty blocks, payload text encoded without
-//! special-token matching, effort quantized to integer milli-effort, its own
-//! canonical JSON spelling for floats, and tool-choice controls rendered as an
-//! instruction in the first system message.
+//! special-token matching, effort quantized to integer milli-effort, and its
+//! own canonical JSON spelling for floats.
 
 use std::collections::HashMap;
 use std::fmt::Write as _;
@@ -45,8 +44,6 @@ impl InklingChatRenderer {
         self.write_inkling2_tool_declarations(&mut out, &tools)?;
 
         let mut effort_text = Some(inkling2_effort_text(effort));
-        // The tool-choice instruction joins the first system message: the
-        // effort directive when the conversation does not start with one.
         let mut first_system_content = None;
         if !tools.is_empty()
             && let Some(instruction) =
@@ -215,9 +212,7 @@ impl InklingChatRenderer {
                             self.write_text_block(out, role_token_id, author_name, text)?;
                         }
                         ChatContentPart::ImageUrl { .. } => {
-                            self.write_message_start(out, role_token_id, author_name)?;
-                            out.push(self.special.content_image);
-                            out.push(self.special.end_message);
+                            self.write_image_block(out, role_token_id, author_name)?;
                         }
                         ChatContentPart::InputAudio { .. } => {
                             return Err(Error::UnsupportedMultimodalContent("input_audio"));
@@ -269,7 +264,6 @@ impl InklingChatRenderer {
                     if !tool_call.id.is_empty() {
                         tool_call_id_to_name.insert(tool_call.id.clone(), tool_call.name.clone());
                     }
-                    // Only the argument names are sorted; nested values keep their order.
                     let mut args = tool_call_arguments_or_empty(&tool_call.arguments);
                     args.sort_keys();
                     let payload = format!(
@@ -302,8 +296,6 @@ fn inkling2_effort_text(effort: f64) -> String {
     format!("Thinking effort level: {effort}")
 }
 
-/// The tools to declare: only the chosen one for a named `tool_choice`, and no
-/// request-level tools for `none`.
 fn inkling2_declared_tools(request: &ChatRequest) -> Vec<&ChatTool> {
     match request.tool_choice() {
         ChatToolChoice::None => request
@@ -312,9 +304,7 @@ fn inkling2_declared_tools(request: &ChatRequest) -> Vec<&ChatTool> {
             .filter_map(ChatMessage::declared_tools)
             .flatten()
             .collect(),
-        ChatToolChoice::Function { name } => {
-            request.tools().iter().filter(|tool| &tool.name == name).collect()
-        }
+        ChatToolChoice::Function { name } => request.tool(name).into_iter().collect(),
         ChatToolChoice::Auto | ChatToolChoice::Required => request.tools().iter().collect(),
     }
 }
@@ -353,8 +343,6 @@ fn tool_choice_instruction(
     }
 }
 
-/// `text` as a JSON string with non-ASCII characters escaped, as Python's
-/// `json.dumps` writes it.
 fn ascii_json_string(text: &str) -> String {
     let mut out = String::with_capacity(text.len() + 2);
     for ch in Value::from(text).to_string().chars() {
