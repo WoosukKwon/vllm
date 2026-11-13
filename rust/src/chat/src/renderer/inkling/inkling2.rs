@@ -244,9 +244,12 @@ impl InklingChatRenderer {
         content: &[AssistantContentBlock],
         tool_call_id_to_name: &mut HashMap<String, String>,
     ) -> Result<()> {
-        // Empty text beside reasoning or tool calls is no block.
-        let drop_empty_text =
-            content.iter().any(|block| !matches!(block, AssistantContentBlock::Text { .. }));
+        // An empty string answer beside reasoning or tool calls is no block.
+        let num_text = content
+            .iter()
+            .filter(|block| matches!(block, AssistantContentBlock::Text { .. }))
+            .count();
+        let drop_empty_text = num_text == 1 && num_text < content.len();
         let mut wrote_block = false;
         for block in content {
             match block {

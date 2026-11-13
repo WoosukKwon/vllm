@@ -791,29 +791,6 @@ class TestInkling2Rendering:
             for tid in renderer._render(messages, params)
         ) == (expected + "<|message_user|><|content_text|>q<|end_message|>")
 
-    def test_drops_empty_text_beside_tool_calls(self):
-        call = {"id": "c", "function": {"name": "get_weather", "arguments": "{}"}}
-        text = render_inkling2_text(
-            [
-                {"role": "user", "content": "q"},
-                {
-                    "role": "assistant",
-                    "content": [
-                        {"type": "text", "text": ""},
-                        {"type": "text", "text": "Checking."},
-                    ],
-                    "tool_calls": [call],
-                },
-            ]
-        )
-        assert text.endswith(
-            "<|message_user|><|content_text|>q<|end_message|>"
-            "<|message_model|><|content_text|>Checking.<|end_message|>"
-            "<|message_model|>get_weather<|content_invoke_tool_json|>"
-            '{"name":"get_weather","args":{}}<|end_message|>'
-            "<|content_model_end_sampling|>"
-        )
-
     def test_empty_contents_are_kept(self):
         assert render_inkling2_text(
             [

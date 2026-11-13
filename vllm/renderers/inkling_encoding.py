@@ -539,15 +539,13 @@ def _inkling2_blocks(
     if reasoning is not None and not isinstance(reasoning, str):
         raise TypeError("assistant reasoning_content must be a string")
     tool_calls = message.get("tool_calls") or []
+    if content == "" and (tool_calls or reasoning):
+        content = None
 
     blocks: list[tuple[str, str, str | None]] = (
         [("thinking", reasoning, None)] if reasoning else []
     )
-    for kind, text in _iter_inkling2_parts(content):
-        # Empty text beside reasoning or tool calls is no block.
-        if kind == "text" and not text and (tool_calls or reasoning):
-            continue
-        blocks.append((kind, text, None))
+    blocks.extend((kind, text, None) for kind, text in _iter_inkling2_parts(content))
     for tool_call in tool_calls:
         name, args = _tool_call_name_and_args(tool_call)
         tool_call_id = _as_mapping(tool_call).get("id")

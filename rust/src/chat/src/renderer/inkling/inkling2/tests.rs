@@ -226,25 +226,6 @@ fn sorts_only_top_level_argument_names() {
 }
 
 #[test]
-fn drops_empty_text_beside_tool_calls() {
-    let request = request(vec![
-        ChatMessage::user("q"),
-        ChatMessage::assistant_blocks(vec![
-            text(""),
-            text("Checking."),
-            tool_call("get_weather", r#"{"city":"SF"}"#),
-        ]),
-    ]);
-    assert!(render(&request).ends_with(
-        "<|message_user|><|content_text|>q<|end_message|>\
-         <|message_model|><|content_text|>Checking.<|end_message|>\
-         <|message_model|>get_weather<|content_invoke_tool_json|>\
-         {\"name\":\"get_weather\",\"args\":{\"city\":\"SF\"}}<|end_message|>\
-         <|content_model_end_sampling|>"
-    ));
-}
-
-#[test]
 fn renders_tool_choice_as_an_instruction() {
     let search = ChatTool {
         name: "search".to_string(),
