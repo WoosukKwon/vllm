@@ -35,6 +35,8 @@ class Inkling2ModelConfig(PreTrainedConfig):
         model_max_length: int = 1048576,
         log_scaling_n_floor: int | None = 128000,
         log_scaling_alpha: float = 0.1,
+        pre_norm_pre_affine: bool = False,
+        final_norm_pre_affine: bool = False,
         use_value_norm_no_gamma: bool = True,
         qk_l2_clip_threshold: float = 22.627416997969522,
         rel_l2_clip_threshold: float = 8.0,
@@ -52,6 +54,8 @@ class Inkling2ModelConfig(PreTrainedConfig):
         tie_word_embeddings: bool = False,
         **kwargs: Any,
     ) -> None:
+        if pre_norm_pre_affine or final_norm_pre_affine:
+            raise ValueError("Inkling2 pre-affine norms are not supported")
         if "n_layers_per_attnres_block" in kwargs:
             raise ValueError(
                 "n_layers_per_attnres_block was renamed to n_layers_per_attn_res_block"
